@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://d3js.org/d3.v3.min.js"></script>
+  <script src="https://d3js.org/topojson.v1.min.js"></script>
+  <link href='https://fonts.googleapis.com/css?family=Raleway' rel='stylesheet' type='text/css'>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.10.3/moment.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+
+
+
+  <style>
+	
+	p {
+    display: block;
+    margin-top: 0em;
+    margin-bottom: 0em;
+    margin-left: 0;
+    margin-right: 0;
+}
+ 
+	h2 {
+        text-align: center;
+        color: black;
+		font-family: 'Raleway', sans-serif;
+		margin-top:2cm;
+      }
+	
+	.clickbox {
+    position: absolute;
+
+	    bottom: 10px;
+ 
+
+	text-align: center;
+		}
+ 
+
+	
+   .hidden { 
+     display: none; 
+      }
+
+     
+	.country {fill:#ccc;}	
+      
+	 g.yaxis{ font-family: 'Raleway', sans-serif;}
+	  
+	 #slider3 {
+	  margin: 7px;
+	  width: 5em;  
+	  }
+	  .img {
+    position:absolute;
+    bottom:0;
+    left:0;
+    width:100px;
+    height:100px;
+    background:red;
+}
+	  
+	  
+      .center { text-align: center; }
+
+	  
+	  .tourtextbox {
+			position: absolute;
+			font-size: 18px;
+			left: 70%;
+			height:200px;
+			background-color:#ffe6cc;
+			bottom: 5%;
+			width: 30%;
+			font-family: 'Raleway', sans-serif;
+			 box-shadow: 0px 0px 40px 1px #999;
+			 opacity:0;
+		 } 
+	 .legend1 {
+		position: absolute;
+			font-size: 18px;
+			left: 30%;
+			height:200px;
+			bottom: 5%;
+			width: 30%;
+	 }
+  
+	  div.tooltip {
+		  z-index: 10000;
+		  color: #222; 
+		  background: #fff; 
+		  padding: .5em; 
+		  text-shadow: #f5f5f5 0 1px 0;
+		  border-radius: 2px; 
+		  box-shadow: 0px 0px 2px 0px #a6a6a6; 
+		  opacity: 0.9; 
+		  position: absolute;
+		   font-family: 'Raleway', sans-serif;}  
+	
+	  
+	
+		   
+		   
+    </style>
+<script type="text/javascript">
+
+
+
+function drawForest(geo_data) {
+        "use strict";
+		
+		
+	
+		
+		
+        var margin = 70,
+            width = 1200 - margin,
+            height = 490 - margin;
+		
+
+		var tooltip = d3.select("body").append("div").attr("class", "tooltip hidden");
+
+
+		var offsetL = 30;
+		var offsetT =30;
+		
+		//create title
+      
+	
+		var projection = d3.geo.mercator().translate([0, 0]).scale(width / 3.5 / Math.PI);
+		var path = d3.geo.path().projection(projection);
+
+		//create svg and append structures for map creation & fill
+		
+		var svg = d3.select("body").append("svg").attr("width", width + margin)
+            .attr("height", height + margin).attr("margin-top","5cm");
+
+        var outterg = svg.append("g")
+		.attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+        var g = outterg.append("g").attr("id", "innerg");
+		var  columnlist=["Country", "PercentChange"];
+
+        g.append("path").attr("d", path);
+  	    var topo = topojson.feature(geo_data, geo_data.objects.countries).features
+		var country = d3.select("#innerg").selectAll(".country").data(topo);
+		
+		    country.enter().insert("path").attr("class", "country")
+					  .attr("d", path)
+					  .attr("id", function(d,i) { return d.id; })
+					  
+					  .attr("title", function(d,i) { return d.properties.name; })
+					  .style("fill", "black")
+					  .style("stroke", "#111")
+					  .attr("class", "country")
+					  .attr("d", path)
+					  .attr("id", function(d,i) { return d.id; })
+					  
+					  .attr("title", function(d,i) { return d.properties.name; }) ;
+	//append table 
+		var table = d3.select("body").append("table")
+            .attr("style", "margin-left: 100px")
+			.attr("class","table")
+			.attr("style", "position:absolute; bottom:10px;left:10px"),
+				thead = table.append("thead"),
+				tbody = table.append("tbody");
+				thead.append("th")
+	 // append the header row
+			var legend1 = d3.select('body').append('legend1')
+			.attr("style", "margin-left: 600px")
+
+		legend1.append('svg:image')
+		.attr({
+		'xlink:href': 'http://www.iconpng.com/png/beautiful_flat_color/computer.png',  // can also add svg file here
+		x: 0,
+		y: 0,
+		width: 128,
+		height: 128
+		});
+
+
+      function plot(data) {
+		
+		
+
+
+
+		///take maximum production value from file
+			 var PercentChange_min = d3.max(data, function(d) {
+                return +d.PercentChange;});
+			
+				var PercentChange_max = d3.min(data, function(d) {
+                return -d.PercentChange;});
+			  ////color scale for shading based on logarithmic scale
+			  var scaling = d3.scale.linear().domain([-20,20]).range(-1000,1000)
+			 var color = d3.scale.linear().domain([-1000,1000]).range(['red', 'green']);
+					var col = '#008000'
+		  function update(year) {
+					
+			  d3.select("h2").text("Forest Cover Growth by Country "+year);
+
+
+			  //filter data for specified year
+			 var filtered=data.filter(function(d) {if ( d['Year'] == year){return d;}})
+			 var filteredsorted = filtered.sort(function(a,b) { 
+                  return d3.descending(+a.PercentChange,+b.PercentChange);});  
+				  
+			
+			 var ProductionByID=d3.map();
+			  
+			  //select ISO and ID data from filtered data
+				 filtered.forEach(function(f) {
+					ProductionByID.set(f['ID'],f['PercentChange']);
+					});
+			  
+			  
+			 var countryset = d3.set();
+			 filtered.forEach(function(d) {
+                  countryset.add(d['ID']);});
+			
+				country
+			
+			  //update country fill to map, and update tooltip to allow for display of Production
+			  //upon mouse rollover
+			
+			      country.attr("PercentChange", function(d){
+							 if(countryset.values().indexOf(d.properties.iso) !== -1) {
+							 return ProductionByID.get(d.properties.iso);}
+							 else {return 0}})
+							 .style("fill", function(d){
+							 if(countryset.values().indexOf(d.properties.iso) !== -1) {
+							 //var scaled_values = scaling(ProductionByID.get(d.properties.iso));
+							 //return color(scaling(ProductionByID.get(d.properties.iso)));
+							if(ProductionByID.get(d.properties.iso) < -10 ){
+								return '#800000'
+							 }
+							 if(ProductionByID.get(d.properties.iso) >= -10 & ProductionByID.get(d.properties.iso) <= -2){
+								return '#8B0000'
+							 }
+							 if(ProductionByID.get(d.properties.iso) >= -2 & ProductionByID.get(d.properties.iso) < 0){
+								return '#FF0000'
+							 }
+							 if(ProductionByID.get(d.properties.iso) > 0 & ProductionByID.get(d.properties.iso) <= 0.5){
+								return '#FFFF00'
+							 }
+							 if(ProductionByID.get(d.properties.iso) > 0.5 & ProductionByID.get(d.properties.iso) <= 0.75){
+								return '#9ACD32'
+							 }
+							 if(ProductionByID.get(d.properties.iso) > 0.75 & ProductionByID.get(d.properties.iso) <= 1){
+								return '#7CFC00'
+							 }
+							 if(ProductionByID.get(d.properties.iso) > 1 & ProductionByID.get(d.properties.iso) <= 2){
+								return '#008000'
+							 }
+							 if(ProductionByID.get(d.properties.iso) > 2){
+								return '#006400'
+							 }
+							}
+							else {return '#808080'}})
+						 .on("mousemove", function(d,i) {
+								  var mouse = d3.mouse(svg.node()).map( function(d) 
+								  { return parseFloat(d); } );
+								  var pop = ' | Forest Cover Growth (YoY): '
+								  +parseFloat(ProductionByID.get(d.properties.iso))
+								  +'  %';
+
+								  tooltip.classed("hidden", false)
+						 .attr("style", "left:"+(mouse[0]+offsetL)+"px;top:"
+						 +(mouse[1]+offsetT)+"px")
+						 .html(d.properties.name+pop);})
+						 .on("mouseout",  function(d,i) {
+						    tooltip.classed("hidden", true);});
+						  
+			 // Add rows to table containing production data
+			function tabulate(data, columns) {
+							d3.selectAll("tr").remove();
+
+    
+					 thead.select("th")
+						.text("Countries with most growth in Forest Cover "+year)
+						.attr("class","columnsclass")
+						.attr("colspan",2)
+					 thead.append("tr")
+						  .selectAll("th")
+						  .data(columnlist)
+						  .enter()
+						  .append("th").attr("width",130)
+						  .text(function(column) { return column; });
+
+ 
+
+    // create a row for each object in the data
+     				var rows = tbody.selectAll("tr")
+						.data(data)
+						.enter()
+						.append("tr")
+						.attr("class","dataitems");
+
+    // create a cell in each row for each column
+				    var cells = rows.selectAll("td")
+						.data(function(row) {
+							return columns.map(function(column) {
+								return {column: column, value: row[column]};
+							});
+						})
+						.enter()
+						.append("td")
+						.attr("style", "font-family: Raleway") // sets the font style
+							.html(function(d) { return d.value; })
+							.attr("class",function(d) { return d.value; });
+    
+		return table;
+			}
+
+		// render the table
+			var forestTable = tabulate(filteredsorted.slice(0,5), columnlist);
+			}
+			
+		    update("1990");		
+		d3.select("body").append("div").attr("class","tourtextbox")
+		.attr("padding-bottom","25px");
+		
+	    ////function to give explanatory tour of data
+	    function guided_tour(notes_index) {
+		var clickthisbox= "<p class = \"clickbox\"><b><br>Click this box to continue.</br></p>"
+		
+		var year_ref = [{"year":0,"note":"This animated map will allow you explore changes in global forest area from 1990 to 2014."+clickthisbox },
+		{"year":0,"note":"Forest Land : Note Only countries showing an increase in forest land will be shown. We are only interested to see the increase in forest land."+clickthisbox },
+		{ "year": 1990, "note": "<p class=\"center\"><b>1990</b></p>Initially the change in Forest Land has been set to 0."+clickthisbox },
+	{ "year": 1991, "note": "<p class=\"center\"><b>1991</b></p>We see a 33.33% increase in Kuwait's Forest Land from 3 to 4 ha.Similarly Cabo Verde showed an increase in Forest Land from 15 to 18 ha."+clickthisbox },
+	{ "year": 1992, "note": "<p class=\"center\"><b>1992</b></p><br>Cabo Verde showed a further increase from 18 to 20 ha.At the same time Egypt also shows a 4.44% increase."+clickthisbox},
+	{ "year": 1993, "note": "<p class=\"center\"><b>1993</b></p><br>Cabo Verde further outshines itself by showing a 15% increase in forest area.At the same time Cabo Verde showed a 10.93% GDP growth."+clickthisbox},
+	{ "year": 1994, "note": "<p class=\"center\"><b>1994</b></p><br>The Singapore Green Plan 1993 was launched because of which there is 6.66% increase in forest land."+clickthisbox},
+    { "year": 1995, "note": "<p class=\"center\"><b>1995</b></p><br>Uruguay showed a healthy afforestation rate but had a GDP rate of -1.448%."+clickthisbox},
+	{ "year": 1996, "note": "<p class=\"center\"><b>1996</b></p><br>Iceland overtook Cabo Verde."+clickthisbox},
+    { "year": 1997, "note": "<p class=\"center\"><b>1997</b></p><br>Tunisia, Morocoo and Kenya are the only African Countries with a positive afforestation rate."+clickthisbox},
+    { "year": 1998, "note": "<p class=\"center\"><b>1998</b></p><br>Kuwait reports its forest area change. It is not significant as they report it very rarely."+clickthisbox},
+    { "year": 1999, "note": "<p class=\"center\"><b>1999</b></p><br>Iceland overtakes Cabo Verde with a 7.41% change in forest land cover. Egypt and Uruguay continue to show good afforestation rates."+clickthisbox},
+    { "year": 2000, "note": "<p class=\"center\"><b>2000</b></p><br> Cabo Verde again reimproves its afforestation rate. Saint Vincent and the Grenadines emerge as a result of Sustainable Agriculture."+clickthisbox},
+    { "year": 2001, "note": "<p class=\"center\"><b>2001</b></p><br>Algeria and Cuba show amazing afforestation rates at 2.15% and 2.05%."+clickthisbox},
+    { "year": 2002, "note": "<p class=\"center\"><b>2002</b></p><br>Iceland shows a 6.45% increase in forest area."+clickthisbox},
+    { "year": 2003, "note": "<p class=\"center\"><b>2003</b></p><br>All nordic countries show deforestation rates. All South American countries except Suriname, Chile and Uruguay show deforestation"+clickthisbox},
+    { "year": 2004, "note": "<p class=\"center\"><b>2004</b></p><br>Among African Countries Algeria and Egypt are the only ones with afforestation."+clickthisbox},
+    { "year": 2005, "note": "<p class=\"center\"><b>2005</b></p><br>Trend remains same as 2004, with Egypt showing deforestation this time."+clickthisbox},
+    { "year": 2006, "note": "<p class=\"center\"><b>2006</b></p><br>Iceland shows a 5.4% increase in forest area."+clickthisbox},
+    { "year": 2007, "note": "<p class=\"center\"><b>2007</b></p><br>Australia and other south Asian Countries Deforestation continues."+clickthisbox},
+    { "year": 2008, "note": "<p class=\"center\"><b>2008</b></p><br>Recession hits. For the first time Iran (Islamic Republic) shows positive forest land change rate."+clickthisbox},
+    { "year": 2009, "note": "<p class=\"center\"><b>2009</b></p><br>Iceland overtakes Uruguay with a 2.39% rate of change of forest land."+clickthisbox},
+    { "year": 2010, "note": "<p class=\"center\"><b>2010</b></p><br>All nordic countries show deforestation rates. All South American countries except  Chile and Uruguay show deforestation."+clickthisbox},
+	{ "year": 2011, "note": "<p class=\"center\"><b>2011</b></p><br>Historical developments in Burundi's land law allowed more forest land to be grown."+clickthisbox},
+	{ "year": 2012, "note": "<p class=\"center\"><b>2012</b></p><br>Burudi continued with a positive growth rate."+clickthisbox},
+	{ "year": 2013, "note": "<p class=\"center\"><b>2013</b></p><br>Around 2010 Australia showed a postive turn over and now is showing afforstation"+clickthisbox},
+	{ "year": 2014, "note": "<p class=\"center\"><b>2014</b></p><br>Australia shows a further positive growth in forest land."+clickthisbox},
+    { "year": 2015, "note": "<p class=\"center\"><b>2015</b></p><br>Algeria and Morocoo are the only African Countries which do not show deforestation."+clickthisbox},
+    { "year": 2016, "note": "<p class=\"center\"><b>2016</b></p><br>All South East Asian Countries show deforestation except Vietnam."+clickthisbox},
+    { "year": 2017, "note": "<p class=\"center\"><b>2017</b></p><br>Entire North America shows deforestation."+clickthisbox},
+    { "year": 2018, "note": "<p class=\"center\"><b>2018</b></p><br>Kenya shows positive forest land increase rate."+clickthisbox},
+    { "year": 2019, "note": "<p class=\"center\"><b>2019</b></p><br>Iceland shows a 2% forest land change rate."+clickthisbox},	
+	{ "year": 2019, "note": "<br>You can also look at the Global GDP numbers by clicking on the GDP button at the top of the page.<br><p class = \"clickbox\"> <b> Click here to finish.<br></b></p>"}
+
+	];
+		//set color of country text in table and country border
+		if (notes_index<year_ref.length) {
+				update(year_ref[notes_index].year);
+			d3.selectAll(".tourtextbox")
+
+			  .transition()
+				.duration(600)
+				.style("top", "600px")
+				.style("color", "#000000")
+				.style("opacity",0.8);	
+				
+
+				d3.selectAll(".tourtextbox").html(year_ref[notes_index].note)
+				.on("click",function(){notes_index+=1;guided_tour(notes_index);} )}
+				
+		if (notes_index > year_ref.length-1) {
+		d3.selectAll(".tourtextbox")
+		.transition().duration(600).style("top", "0px")
+		
+		.style("opacity",0)
+		.remove();}}
+		
+		guided_tour(0);
+
+}
+
+		  d3.csv("dataFAO.csv",function(d)
+		  {return d},plot);
+}
+
+function drawGDP(geo_data){
+        "use strict";
+		
+		
+	
+		
+		
+        var margin = 70,
+            width = 1200 - margin,
+            height = 490 - margin;
+		
+
+		var tooltip = d3.select("body").append("div").attr("class", "tooltip hidden");
+
+
+		var offsetL = 30;
+		var offsetT =30;
+		
+		//create title
+      
+	
+		var projection = d3.geo.mercator().translate([0, 0]).scale(width / 3.5 / Math.PI);
+		var path = d3.geo.path().projection(projection);
+
+		//create svg and append structures for map creation & fill
+		
+		var svg = d3.select("body").append("svg").attr("width", width + margin)
+            .attr("height", height + margin).attr("margin-top","5cm");
+
+        var outterg = svg.append("g")
+		.attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+        var g = outterg.append("g").attr("id", "innerg");
+		var  columnlist=["Country", "GDP_Growth"];
+
+        g.append("path").attr("d", path);
+  	    var topo = topojson.feature(geo_data, geo_data.objects.countries).features
+		var country = d3.select("#innerg").selectAll(".country").data(topo);
+		
+		    country.enter().insert("path").attr("class", "country")
+					  .attr("d", path)
+					  .attr("id", function(d,i) { return d.id; })
+					  
+					  .attr("title", function(d,i) { return d.properties.name; })
+					  .style("fill", "white")
+					  .style("stroke", "#111")
+					  .attr("class", "country")
+					  .attr("d", path)
+					  .attr("id", function(d,i) { return d.id; })
+					  
+					  .attr("title", function(d,i) { return d.properties.name; }) ;
+	//append table 
+		var table = d3.select("body").append("table")
+            .attr("style", "margin-left: 100px")
+			.attr("class","table")
+			.attr("style", "position:absolute; bottom:10px;left:10px"),
+				thead = table.append("thead"),
+				tbody = table.append("tbody");
+				thead.append("th")
+	 // append the header row
+
+
+      function plot(data) {
+		
+		
+
+
+
+		///take maximum production value from file
+			 var GDP_Growth_max = d3.max(data, function(d) {
+                return +d.GDP_Growth;});
+			
+				var GDP_Growth_min = d3.min(data, function(d) {
+                return -d.GDP_Growth;});
+			  ////color scale for shading based on logarithmic scale
+			 var color = d3.scale.log().domain([1,GDP_Growth_max]).range(['#009d6e', '#a5d5d8']);
+					
+		  function update(year) {
+					
+			  d3.select("h2").text("GDP Growth by Country "+year);
+
+
+			  //filter data for specified year
+			 var filtered=data.filter(function(d) {if ( d['Year'] == year){return d;}})
+			 var filteredsorted = filtered.sort(function(a,b) { 
+                  return d3.descending(+a.GDP_Growth,+b.GDP_Growth);});  
+				  
+			
+			 var GDP_GrowthByID=d3.map();
+			  
+			  //select ISO and ID data from filtered data
+				 filtered.forEach(function(f) {
+					GDP_GrowthByID.set(f['ID'],f['GDP_Growth']);
+					});
+			  
+			  
+			 var countryset = d3.set();
+			 filtered.forEach(function(d) {
+                  countryset.add(d['ID']);});
+			
+				country
+			
+			  //update country fill to map, and update tooltip to allow for display of Production
+			  //upon mouse rollover
+			
+			      country.attr("gdp_growth", function(d){
+							 if(countryset.values().indexOf(d.properties.iso) !== -1) {
+							 return GDP_GrowthByID.get(d.properties.iso);}
+							 else {return 0}})
+							 .style("fill", function(d){
+							 if(countryset.values().indexOf(d.properties.iso) !== -1) {
+							 //var scaled_values = scaling(ProductionByID.get(d.properties.iso));
+							 //return color(scaling(ProductionByID.get(d.properties.iso)));
+							if(GDP_GrowthByID.get(d.properties.iso) < -10 ){
+								return '#800000'
+							 }
+							 if(GDP_GrowthByID.get(d.properties.iso) >= -10 & GDP_GrowthByID.get(d.properties.iso) <= -2){
+								return '#8B0000'
+							 }
+							 if(GDP_GrowthByID.get(d.properties.iso) >= -2 & GDP_GrowthByID.get(d.properties.iso) < 0){
+								return '#FF0000'
+							 }
+							 if(GDP_GrowthByID.get(d.properties.iso) > 0 & GDP_GrowthByID.get(d.properties.iso) <= 1){
+								return '#FFFF00'
+							 }
+							 if(GDP_GrowthByID.get(d.properties.iso) > 1 & GDP_GrowthByID.get(d.properties.iso) <= 2){
+								return '#9ACD32'
+							 }
+							 if(GDP_GrowthByID.get(d.properties.iso) > 2 & GDP_GrowthByID.get(d.properties.iso) <= 3){
+								return '#7CFC00'
+							 }
+							 if(GDP_GrowthByID.get(d.properties.iso) > 3 & GDP_GrowthByID.get(d.properties.iso) <= 5){
+								return '#008000'
+							 }
+							 if(GDP_GrowthByID.get(d.properties.iso) > 5 & GDP_GrowthByID.get(d.properties.iso) <= 7){
+								return '#006400'
+							 }
+							 if(GDP_GrowthByID.get(d.properties.iso) > 7 & GDP_GrowthByID.get(d.properties.iso) <= 9){
+								return '#006400'
+							}
+							if(GDP_GrowthByID.get(d.properties.iso) > 9 & GDP_GrowthByID.get(d.properties.iso) <= 12){
+								return '#87CEFA'
+							}
+							if(GDP_GrowthByID.get(d.properties.iso) > 12){
+								return '#000080'
+							}
+						}
+							else {return '#808080'}})
+						 .on("mousemove", function(d,i) {
+								  var mouse = d3.mouse(svg.node()).map( function(d) 
+								  { return parseFloat(d); } );
+								  var pop = ' | GDP_Growth: '
+								  +parseFloat(GDP_GrowthByID.get(d.properties.iso))
+								  +'  %';
+
+								  tooltip.classed("hidden", false)
+						 .attr("style", "left:"+(mouse[0]+offsetL)+"px;top:"
+						 +(mouse[1]+offsetT)+"px")
+						 .html(d.properties.name+pop);})
+						 .on("mouseout",  function(d,i) {
+						    tooltip.classed("hidden", true);});
+						  
+			 // Add rows to table containing production data
+			function tabulate(data, columns) {
+							d3.selectAll("tr").remove();
+                            d3.selectAll("th").remove();
+
+    
+					 thead.select("th")
+						.text("Top 5 Countries with maximum GDP for "+year)
+						.attr("class","columnsclass")
+						.attr("colspan",2)
+					 thead.append("tr")
+						  .selectAll("th")
+						  .data(columnlist)
+						  .enter()
+						  .append("th").attr("width",130)
+						  .text(function(column) { return column; });
+
+ 
+
+    // create a row for each object in the data
+     				var rows = tbody.selectAll("tr")
+						.data(data)
+						.enter()
+						.append("tr")
+						.attr("class","dataitems");
+
+    // create a cell in each row for each column
+				    var cells = rows.selectAll("td")
+						.data(function(row) {
+							return columns.map(function(column) {
+								return {column: column, value: row[column]};
+							});
+						})
+						.enter()
+						.append("td")
+						.attr("style", "font-family: Raleway") // sets the font style
+							.html(function(d) { return d.value; })
+							.attr("class",function(d) { return d.value; });
+    
+		return table;
+			}
+
+		// render the table
+			var gdpTable = tabulate(filteredsorted.slice(0,5), columnlist);
+			}
+		
+			
+			
+			
+			
+		    update("1990");
+
+		
+		d3.select("body").append("div").attr("class","tourtextbox")
+		.attr("padding-bottom","25px");
+		
+	    ////function to give explanatory tour of data
+	    function guided_tour(notes_index) {
+		
+		var clickthisbox= "<p class = \"clickbox\"><b><br>Click this box to continue.</br></p>"
+		
+	
+		
+		
+		
+		var year_ref = [{"year":0,"note":"This animated map will allow you explore changes in global GDP Growth from 1990 to 2014."+clickthisbox },
+		{"year":0,"note":"Let's look at the Global GDP growth numbers year-by-year from 1990 "+clickthisbox },
+	{ "year": 1990, "note": "<p class=\"center\"><b>1990</b></p>The early 90's witnessed the fall of the Soviet Union ehich is shown by the negative GDP growth across Russia and other parts of eastern Europe."+clickthisbox },
+	{ "year": 1991, "note": "<p class=\"center\"><b>1991</b></p>We can see that parts of Middle East and China experiencednhigh economic growth in 1992. "+clickthisbox },
+	{ "year": 1992, "note": "<p class=\"center\"><b>1992</b></p><br>Fresh off the economic liberalization policy under Finance Minister Dr. Manmohan Singh, India joins China and Middle East in high economic growth."+clickthisbox},
+	{ "year": 1993, "note": "<p class=\"center\"><b>1993</b></p><br>China witnesses its run of double digit growth whereas most of the European Union(EU) countries are in decline."+clickthisbox},
+	{ "year": 1994, "note": "<p class=\"center\"><b>1994</b></p><br>EU countries bounce back into positive economic growth. African countries such as Eritrea, Cabo Verde and Equitorial Guinea show rapid GDP growth."+clickthisbox},
+    { "year": 1995, "note": "<p class=\"center\"><b>1995</b></p><br>The former Soviet Satellites are still showing declines in their GDP numbers. "+clickthisbox},
+	{ "year": 1996, "note": "<p class=\"center\"><b>1996</b></p><br>Some recoveries in the GDP numbers of Kazaksthan and Mongolia. Newly formed Eastern European countries such as Bosnia and Herzegovina are among the top growing economies of the world."+clickthisbox},
+    { "year": 1997, "note": "<p class=\"center\"><b>1997</b></p><br>Russia finally sees a positive trend in its GDP data for the first time since the fall of the Soviet Union."+clickthisbox},
+    { "year": 1998, "note": "<p class=\"center\"><b>1998</b></p><br>South-East Asia as well as Russia experience a slowdown. USA, India and China continue posting positive GDP numbers."+clickthisbox},
+    { "year": 1999, "note": "<p class=\"center\"><b>1999</b></p><br>Parts of Middle East and South America experience slowdown due to volatililty in the global crude oil market."+clickthisbox},
+    { "year": 2000, "note": "<p class=\"center\"><b>2000</b></p><br>Most of the world economies were growing strongly with Russia reaching double digit growth."+clickthisbox},
+    { "year": 2001, "note": "<p class=\"center\"><b>2001</b></p><br>Global GDP growth continues."+clickthisbox},
+    { "year": 2002, "note": "<p class=\"center\"><b>2002</b></p><br>Many African countries reach double digit growth on the global mineral resource demand."+clickthisbox},
+    { "year": 2003, "note": "<p class=\"center\"><b>2003-2007</b></p><br>Global economic growth continues until the crash of 2007."+clickthisbox},
+    { "year": 2008, "note": "<p class=\"center\"><b>2008</b></p><br>Most western countries experience slowdown in the aftermath of the stock market crash of 2007."+clickthisbox},
+    { "year": 2009, "note": "<p class=\"center\"><b>2009</b></p><br>Decline continues and spreads to the eastern hemisphere and South America."+clickthisbox},
+    { "year": 2010, "note": "<p class=\"center\"><b>2010</b></p><br>Global Bounceback begins"+clickthisbox},
+	{ "year": 2011, "note": "<p class=\"center\"><b>2011-2014</b></p><br>African economies reach record growth levels."+clickthisbox},
+	{ "year": 2015, "note": "<p class=\"center\"><b>2015</b></p><br>Political Instability in Eastern Europe results in a decline in economic numbers in many countries of this region"+clickthisbox},
+    { "year": 2016, "note": "<p class=\"center\"><b>2016-2019</b></p><br>Global GDP numbers are stable in this period with countries in Africa and Asia leading the growth in demand."+clickthisbox},
+    
+	{ "year": 2019, "note": "<br>You can also look at the Global Forest Area numbers by clicking on the Forest button at the top of the page.<br><p class = \"clickbox\"> <b> Click here to finish.<br></b></p>"}
+
+	];
+		//set color of country text in table and country border
+		if (notes_index<year_ref.length) {
+				update(year_ref[notes_index].year);
+			d3.selectAll(".tourtextbox")
+			    .transition()
+				.duration(600)
+				.style("top", "600px")
+				.style("color", "#000000")
+				.style("opacity",0.8);	
+				
+
+				d3.selectAll(".tourtextbox").html(year_ref[notes_index].note)
+				.on("click",function(){notes_index+=1;guided_tour(notes_index);} )}
+				
+		if (notes_index > year_ref.length-1) {
+		//update(1990);
+		d3.selectAll(".tourtextbox")
+		.transition().duration(600).style("top", "0px")
+		
+		.style("opacity",0)
+		.remove();}}
+		
+		guided_tour(0);
+			
+			
+			
+			
+			///set up slider above map, and parameters for slider, which will run update function
+            d3.select('#slider3').call(d3.slider()
+				.axis(true).min(1990).max(2019).step(1)
+				.on("slide", function( evt,value) { 
+							update(value);}));
+ 			                var w = 140, h = 400;
+
+			//set up legend on upper left
+			var key = d3.select("body")
+			.append("svg")
+			.attr("id", "key")
+			.attr("width", w)
+			.attr("height", h)
+			.attr("style", "position:absolute; top:20px; right:20px");
+
+			var legend = key.append("defs")
+				.append("svg:linearGradient")
+				.attr("id", "gradient")
+				.attr("x1", "100%")
+				.attr("y1", "0%")
+				.attr("x2", "100%")
+				.attr("y2", "100%")
+				.attr("spreadMethod", "pad");
+				legend
+				.append("stop")
+				.attr("offset", "0%")
+				.attr("stop-color", "#009d6e")
+				.attr("stop-opacity", 1);
+				legend.
+				append("stop")
+				.attr("offset", "100%")
+				.attr("stop-color", "green")
+				.attr("stop-opacity", 1);
+
+				key.append("rect")
+				.attr("width", w - w)
+				.attr("height", h - w)
+				.style("fill", "url(#gradient)")
+				.attr("transform", "translate(0,10)");
+
+			var y = d3.scale.log().range([0,300]).domain([-10,10]);
+
+			var yAxis = d3.svg.axis();
+				yAxis.scale(y).orient("right").tickFormat
+      					(function (d) {return y.tickFormat(4,d3.format(",d"))(d)});
+						key.append("g")
+						.attr("class", "yaxis")
+						.attr("transform", "translate(41,10)")
+						.call(yAxis)
+						.append("text")
+						.attr("transform", "rotate(-90)")
+						.attr("y", 30)
+						.attr("dy", "2.75em")
+						.style("text-anchor", "end")
+						.text("% Growth");
+					//end legend
+					}
+
+		  d3.csv("WorldBank_data.csv",function(d)
+		  {return d},plot);
+}
+
+</script>
+</body>
+</html>
+<script type="text/javascript">
+
+
+</script>
+<div id="chart" style="width: 100vw; float: left; height: 140px;">
+<center> <h1> Comparing Global Economic Growth and its affect on Aforestation/Deforestation</h1></center>
+  </div>
+<script>
+d3.select("#chart").append("h3").text("Select a criteria to compare the regions on");
+      d3.select("#chart").append("form").attr("id", "criteria");
+
+      d3.select("#criteria").append("input")
+        .attr("type", "radio")
+        .attr("id", "forest")
+        .attr("name", "criteria");
+
+      d3.select("#criteria").append("label")
+        .attr("for", "forest")
+        .text(" Forests ");
+
+      d3.select("#criteria").append("input")
+        .attr("type", "radio")
+        .attr("id", "gdp")
+        .attr("name", "criteria");
+
+      d3.select("#criteria").append("label")
+        .attr("for", "gdp")
+        .text(" GDP ");
+d3.select("#forest").on("click", function(){
+    d3.selectAll('svg').remove();
+    d3.selectAll('th').remove();
+    d3.json("world-110m-cia.json", drawForest);
+});
+
+d3.select("#gdp").on("click", function(){
+    d3.selectAll('svg').remove();
+    d3.json("world-110m-cia.json", drawGDP);
+    }
+    );
+
+
+</script>
+<IMG STYLE="position:absolute; TOP:135px; RIGHT:170px; WIDTH:100px; HEIGHT:350px" SRC="GDP_LEGEND.PNG">
+<IMG STYLE="position:absolute; TOP:135px; RIGHT:50px; WIDTH:100px; HEIGHT:350px" SRC="Forest_rate_legend.PNG">	
+</body>
+</html>
